@@ -1,0 +1,18 @@
+{
+  "name": "2026 Midterms Tracker",
+  "short_name": "Midterms 2026",
+  "description": "Interactive 2026 U.S. House and Senate election tracker",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f5f6f8",
+  "theme_color": "#17191d",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
