@@ -166,8 +166,8 @@ function updateGameUI(){
   shareBtn.classList.toggle("hidden",!gameLocked);
   lockBtn.classList.toggle("hidden",gameLocked);
   resetBtn.disabled=gameLocked;
-  lockBtn.disabled=!Object.keys(houseBaseline).length;
-  lockBtn.title=lockBtn.disabled?"Loading map data":"Lock this prediction";
+  lockBtn.disabled=false;
+  lockBtn.title="Lock this prediction";
 }
 function valuesToCode(vals){
   const map={D:0,R:1,I:2,N:3}, bytes=new Uint8Array(1+Math.ceil(vals.length/4)); bytes[0]=1;
@@ -199,10 +199,27 @@ function unlockGame(){
   gameLocked=false; const u=new URL(location.href);u.searchParams.delete("p");history.replaceState(null,"",u);
   updateGameUI();renderHouse();renderSenate();
 }
-function lockGame(){
-  if(!Object.keys(houseBaseline).length)return;
-  gameLocked=true; const code=makeShareCode(); const u=new URL(location.href);u.searchParams.set("p",code);history.replaceState(null,"",u);
-  updateGameUI();renderHouse();renderSenate();
+async function lockGame(){
+  try{
+    lockBtn.disabled=true; lockBtn.textContent="Locking…";
+    if(!Object.keys(houseBaseline).length){
+      const r=await fetch("./house_baseline.json?lock=1",{cache:"no-store"});
+      if(!r.ok)throw new Error("Baseline load failed");
+      houseBaseline=await r.json();
+    }
+    gameLocked=true;
+    const code=makeShareCode();
+    const u=new URL(location.href);
+    u.searchParams.set("p",code);
+    history.replaceState(null,"",u);
+    updateHouse();updateSenate();updateGameUI();renderHouse();renderSenate();
+  }catch(e){
+    gameLocked=false;
+    alert("Could not lock the map. Please reload once while online and try again.");
+  }finally{
+    lockBtn.textContent="Lock Map";
+    if(!gameLocked)lockBtn.disabled=false;
+  }
 }
 async function shareGame(){
   const url=location.href, text="My 2026 Midterm prediction — make your own map:";
