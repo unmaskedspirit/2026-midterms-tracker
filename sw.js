@@ -1,8 +1,10 @@
-const CACHE="midterms-2026-v1";
+const CACHE="midterms-2026-v2";
 const APP=["./","./index.html","./manifest.webmanifest","./icon.svg"];
 const MAPS=[
 "https://raw.githubusercontent.com/amcharts/amcharts4-geodata/master/dist/script/json/region/usa/congressional120/usaCongressionalLow.json",
-"https://cdn.amcharts.com/lib/4/geodata/json/region/usa/congressional120/usaCongressionalLow.json"
+"https://cdn.amcharts.com/lib/4/geodata/json/region/usa/congressional120/usaCongressionalLow.json",
+"https://raw.githubusercontent.com/amcharts/amcharts4-geodata/master/dist/script/json/usaLow.json",
+"https://cdn.amcharts.com/lib/4/geodata/json/usaLow.json"
 ];
 
 self.addEventListener("install",event=>{
