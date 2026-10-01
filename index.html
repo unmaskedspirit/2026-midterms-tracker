@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>2026 Midterms Tracker</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#17191d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Midterms 2026">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
 <style>
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
@@ -138,6 +144,13 @@ async function initGeo(){const cached=await cacheGet();if(cached){geo=cached;cac
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));housePanel.classList.toggle("active",activeTab==="house");senatePanel.classList.toggle("active",activeTab==="senate")});
 resetBtn.onclick=()=>{if(activeTab==="house"){if(confirm("Clear all House assignments?")){houseChoices={};saveChoices();renderHouse();updateHouse()}}else{if(confirm("Return all Senate races to their current state?")){senateChoices={};saveChoices();renderSenate();updateSenate()}}};
 updateHouse();updateSenate();initGeo();
+</script>
+<script>
+if("serviceWorker" in navigator){
+  window.addEventListener("load",()=>{
+    navigator.serviceWorker.register("./sw.js").catch(()=>{});
+  });
+}
 </script>
 </body>
 </html>
