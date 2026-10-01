@@ -166,8 +166,8 @@ function updateGameUI(){
   shareBtn.classList.toggle("hidden",!gameLocked);
   lockBtn.classList.toggle("hidden",gameLocked);
   resetBtn.disabled=gameLocked;
-  lockBtn.disabled=!Object.keys(houseBaseline).length || c.hc<50 || c.sc<35;
-  lockBtn.title=lockBtn.disabled?"Call all 50 House races and all 35 Senate races first":"Lock this prediction";
+  lockBtn.disabled=!Object.keys(houseBaseline).length;
+  lockBtn.title=lockBtn.disabled?"Loading map data":"Lock this prediction";
 }
 function valuesToCode(vals){
   const map={D:0,R:1,I:2,N:3}, bytes=new Uint8Array(1+Math.ceil(vals.length/4)); bytes[0]=1;
@@ -200,7 +200,7 @@ function unlockGame(){
   updateGameUI();renderHouse();renderSenate();
 }
 function lockGame(){
-  const c=gameCounts(); if(c.hc<50||c.sc<35)return;
+  if(!Object.keys(houseBaseline).length)return;
   gameLocked=true; const code=makeShareCode(); const u=new URL(location.href);u.searchParams.set("p",code);history.replaceState(null,"",u);
   updateGameUI();renderHouse();renderSenate();
 }
