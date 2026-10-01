@@ -76,6 +76,7 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px;backgr
       <span id="lockedPill" class="lockedpill hidden">🔒 Locked</span>
       <button id="resetBtn">Reset current tab</button>
       <button id="editBtn" class="hidden">Edit Picks</button>
+      <button id="newGameBtn" class="hidden">Make Your Own</button>
       <button id="shareBtn" class="sharebtn hidden">Share</button>
       <button id="lockBtn" class="primary">Lock Map</button>
     </div>
@@ -146,7 +147,7 @@ const SPECIAL=new Set(["FL","OH"]);
 const COLORS={N:"#e5e7ea",D:"#2d72d2",R:"#d44747",I:"#e2bd20"};
 const LIGHT={D:"#d8e7fb",R:"#f6dada",I:"#faefad"};
 const HOUSE_COMPETITIVE=new Set(["AZ-1","AZ-6","CA-6","CA-13","CA-22","CA-45","CA-48","CO-5","CO-8","FL-13","FL-14","FL-22","FL-25","FL-27","IA-1","IA-2","IA-3","IN-1","MI-4","MI-7","MI-8","MI-10","MT-1","NC-1","NC-11","NE-2","NH-1","NJ-7","NM-2","NV-1","NV-3","NY-3","NY-4","NY-17","OH-1","OH-7","OH-9","PA-1","PA-7","PA-8","PA-10","TX-15","TX-28","TX-34","TX-35","VA-1","VA-2","WA-3","WI-1","WI-3"]);
-let activeTab="house",geo=null,stateGeo=null,houseBaseline={},houseChoices={},senateChoices={},gameLocked=false,pendingSharedCode=null;
+let activeTab="house",geo=null,stateGeo=null,houseBaseline={},houseChoices={},senateChoices={},gameLocked=false,pendingSharedCode=null,isSharedView=false;
 try{houseChoices=JSON.parse(localStorage.getItem("midterms2026_house_v2")||"{}")||{}}catch(e){}
 try{senateChoices=JSON.parse(localStorage.getItem("midterms2026_senate_geo")||"{}")||{}}catch(e){}
 function saveChoices(){try{localStorage.setItem("midterms2026_house_v2",JSON.stringify(houseChoices));localStorage.setItem("midterms2026_senate_geo",JSON.stringify(senateChoices))}catch(e){}}
@@ -162,7 +163,8 @@ function updateGameUI(){
     ? "Prediction locked • "+c.hc+"/50 House • "+c.sc+"/35 Senate"
     : c.hc+"/50 House races • "+c.sc+"/35 Senate races";
   lockedPill.classList.toggle("hidden",!gameLocked);
-  editBtn.classList.toggle("hidden",!gameLocked);
+  editBtn.classList.toggle("hidden",!gameLocked||isSharedView);
+  newGameBtn.classList.toggle("hidden",!gameLocked||!isSharedView);
   shareBtn.classList.toggle("hidden",!gameLocked);
   lockBtn.classList.toggle("hidden",gameLocked);
   resetBtn.disabled=gameLocked;
@@ -188,6 +190,7 @@ function makeShareCode(){
   return valuesToCode(hk.map(k=>shownHouseParty(k)).concat(sk.map(st=>senateChoices[st]||"N")));
 }
 function applyShareCode(code){
+  isSharedView=true;
   const hk=Object.keys(houseBaseline).sort(), sk=Object.keys(UP_PARTY).sort();
   const vals=codeToValues(code,hk.length+sk.length); if(!vals)return false;
   houseChoices={}; senateChoices={};
@@ -196,7 +199,7 @@ function applyShareCode(code){
   gameLocked=true; saveChoices(); renderHouse(); renderSenate(); updateHouse(); updateSenate(); updateGameUI(); return true;
 }
 function unlockGame(){
-  gameLocked=false; const u=new URL(location.href);u.searchParams.delete("p");history.replaceState(null,"",u);
+  isSharedView=false; gameLocked=false; const u=new URL(location.href);u.searchParams.delete("p");history.replaceState(null,"",u);
   updateGameUI();renderHouse();renderSenate();
 }
 async function lockGame(){
@@ -207,7 +210,7 @@ async function lockGame(){
       if(!r.ok)throw new Error("Baseline load failed");
       houseBaseline=await r.json();
     }
-    gameLocked=true;
+    isSharedView=false; gameLocked=true;
     const code=makeShareCode();
     const u=new URL(location.href);
     u.searchParams.set("p",code);
@@ -220,6 +223,16 @@ async function lockGame(){
     lockBtn.textContent="Lock Map";
     if(!gameLocked)lockBtn.disabled=false;
   }
+}
+function makeYourOwn(){
+  isSharedView=false;
+  gameLocked=false;
+  const u=new URL(location.href);
+  u.searchParams.delete("p");
+  history.replaceState(null,"",u);
+  updateGameUI();
+  renderHouse();
+  renderSenate();
 }
 async function shareGame(){
   const url=location.href, text="My 2026 Midterm prediction — make your own map:";
@@ -252,7 +265,7 @@ function updateSenate(){let d=45,r=53,i=2;Object.entries(senateChoices).forEach(
 async function initGeo(){const cached=await cacheGet();if(cached){geo=cached;cacheBadge.textContent="map cached";renderHouse();loadRemote().then(async g=>{geo=g;await cachePut(g);renderHouse()}).catch(()=>{});return}try{const g=await loadRemote();geo=g;await cachePut(g);cacheBadge.textContent="map saved";renderHouse()}catch(e){houseStatus.innerHTML="Map failed to load.<small>Reload the page while online.</small>"}}
 async function initStates(){const cached=await stateCacheGet();if(cached){stateGeo=cached;renderSenate();loadStatesRemote().then(async g=>{stateGeo=g;await stateCachePut(g);renderSenate()}).catch(()=>{});return}try{const g=await loadStatesRemote();stateGeo=g;await stateCachePut(g);renderSenate()}catch(e){senateStatus.innerHTML="State map failed to load.<small>Reload the page while online.</small>"}}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));housePanel.classList.toggle("active",activeTab==="house");senatePanel.classList.toggle("active",activeTab==="senate")});
-lockBtn.onclick=lockGame; editBtn.onclick=unlockGame; shareBtn.onclick=shareGame;
+lockBtn.onclick=lockGame; editBtn.onclick=unlockGame; newGameBtn.onclick=makeYourOwn; shareBtn.onclick=shareGame;
 resetBtn.onclick=()=>{if(gameLocked)return;if(activeTab==="house"){if(confirm("Return House to the 50-race competitive baseline?")){houseChoices={};saveChoices();renderHouse();updateHouse()}}else{if(confirm("Return all Senate races to their current state?")){senateChoices={};saveChoices();renderSenate();updateSenate()}}};
 async function initHouseBaseline(){try{
   const r=await fetch("./house_baseline.json",{cache:"no-store"});houseBaseline=await r.json();
