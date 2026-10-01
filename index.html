@@ -1,1 +1,143 @@
-<!doctype html><html><head><meta charset="utf-8"><title>2026 Midterms Tracker</title></head><body><h1>Preparing tracker...</h1></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>2026 Midterms Tracker</title>
+<style>
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#f5f6f8;color:#17191d;overflow:hidden}
+#app{height:100%;display:flex;flex-direction:column}
+header{background:#fff;border-bottom:1px solid #d8dce2;padding:12px 18px 0;box-shadow:0 1px 5px #0001;z-index:10}
+.toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+h1{font-size:21px;margin:0;font-weight:850}
+button{border:1px solid #c9ced5;background:#fff;border-radius:8px;padding:7px 11px;font-weight:700;cursor:pointer}
+button:hover{background:#f0f2f5}
+.tabs{display:flex;gap:6px;margin-top:10px}
+.tab{border-radius:8px 8px 0 0;padding:8px 18px;background:#f4f5f7;color:#565b63}
+.tab.active{background:#17191d;color:#fff;border-color:#17191d}
+.panel{display:none;flex:1;min-height:0;flex-direction:column}
+.panel.active{display:flex}
+.scorearea{background:#fff;border-bottom:1px solid #dde1e6;padding:10px 18px 11px}
+.score{display:grid;grid-template-columns:145px 1fr 145px;align-items:center;gap:14px}
+.party{font-weight:850;font-size:18px}
+.dem{color:#2166c5;text-align:right}.rep{color:#c93636}.ind{color:#9a7a00}
+.rightscore{display:flex;justify-content:flex-start;gap:10px;align-items:center}
+.barwrap{position:relative}
+.bar{height:30px;border-radius:8px;overflow:hidden;display:flex;background:#dddfe3;box-shadow:inset 0 0 0 1px #c8ccd2}
+.dbar{background:#2d72d2}.ibar{background:#e2bd20}.nbar{background:#dddfe3}.rbar{background:#d44747}
+.maj{position:absolute;top:-4px;width:2px;height:38px;background:#16181c}
+.majlabel{position:absolute;top:34px;transform:translateX(-50%);font-size:10px;color:#555;white-space:nowrap}
+.control{margin-top:19px;text-align:center;font-weight:800;font-size:14px}
+.sub{text-align:center;color:#666;font-size:12px;margin-top:2px}
+.mapwrap{flex:1;min-height:0;position:relative;background:#eef1f4;overflow:auto}
+svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px;background:#eef1f4}
+.district{stroke:#6f7379;stroke-width:.55;vector-effect:non-scaling-stroke;cursor:pointer;transition:fill .12s,opacity .12s}
+.district:hover{stroke:#111;stroke-width:1.7}
+.senatePath{stroke:#7b7f85;stroke-width:.55;vector-effect:non-scaling-stroke}
+.senatePath.up{cursor:pointer;stroke:#30343a;stroke-width:1.35}
+.senatePath.up:hover{stroke:#000;stroke-width:2.1}
+.legend{position:absolute;right:14px;bottom:12px;background:#fff;padding:9px 11px;border-radius:8px;box-shadow:0 1px 7px #0003;font-size:12px;line-height:21px;z-index:3}
+.sw{display:inline-block;width:12px;height:12px;border:1px solid #777;margin-right:6px;vertical-align:-1px}
+.status{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);background:#fff;border-radius:10px;padding:16px 20px;box-shadow:0 3px 14px #0003;text-align:center;font-weight:750;z-index:5;max-width:470px}
+.status small{display:block;color:#666;font-weight:500;margin-top:6px;line-height:1.35}
+.hidden{display:none!important}
+.tooltip{position:fixed;pointer-events:none;background:#111;color:#fff;border-radius:6px;padding:6px 8px;font-size:12px;font-weight:700;z-index:100;display:none;box-shadow:0 2px 8px #0004}
+.offlinebadge{font-size:11px;color:#5e646c;margin-left:10px}
+@media(max-width:700px){
+ h1{font-size:16px}.score{grid-template-columns:85px 1fr 100px;gap:7px}.party{font-size:13px}.rightscore{gap:5px}
+ header,.scorearea{padding-left:10px;padding-right:10px}.offlinebadge{display:none}
+}
+</style>
+</head>
+<body>
+<div id="app">
+<header>
+  <div class="toprow">
+    <div><h1 style="display:inline">2026 Midterms Tracker</h1><span class="offlinebadge" id="cacheBadge"></span></div>
+    <button id="resetBtn">Reset current tab</button>
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="house">House</button>
+    <button class="tab" data-tab="senate">Senate</button>
+  </div>
+</header>
+
+<section id="housePanel" class="panel active">
+  <div class="scorearea">
+    <div class="score">
+      <div class="party dem">D <span id="houseD">0</span></div>
+      <div class="barwrap">
+        <div class="bar"><div id="houseDB" class="dbar"></div><div id="houseNB" class="nbar"></div><div id="houseRB" class="rbar"></div></div>
+        <div class="maj" style="left:50.11494%"></div><div class="majlabel" style="left:50.11494%">218 to control</div>
+      </div>
+      <div class="party rep"><span id="houseR">0</span> R</div>
+    </div>
+    <div id="houseControl" class="control">No party has reached 218 seats</div>
+    <div id="houseSub" class="sub">435 seats unassigned • Click a district: blue → red → blank</div>
+  </div>
+  <div class="mapwrap">
+    <div id="houseStatus" class="status">Loading 120th Congress district map…<small>First launch needs internet once; after a successful load the map is cached for offline use.</small></div>
+    <svg id="houseSvg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend"><b>House</b><br><span class="sw" style="background:#e5e7ea"></span>Unassigned<br><span class="sw" style="background:#2d72d2"></span>Democratic<br><span class="sw" style="background:#d44747"></span>Republican</div>
+  </div>
+</section>
+
+<section id="senatePanel" class="panel">
+  <div class="scorearea">
+    <div class="score">
+      <div class="party dem">D <span id="senateD">45</span></div>
+      <div class="barwrap">
+        <div class="bar"><div id="senateDB" class="dbar"></div><div id="senateIB" class="ibar"></div><div id="senateRB" class="rbar"></div></div>
+        <div class="maj" style="left:51%"></div><div class="majlabel" style="left:51%">51 seats</div>
+      </div>
+      <div class="rightscore"><div class="party rep"><span id="senateR">53</span> R</div><div class="party ind"><span id="senateI">2</span> I</div></div>
+    </div>
+    <div id="senateControl" class="control">Republicans control the Senate • 53 seats</div>
+    <div id="senateSub" class="sub">35 races clickable • current → Democratic → Republican → Independent → current</div>
+  </div>
+  <div class="mapwrap">
+    <div id="senateStatus" class="status">Loading Senate map…</div>
+    <svg id="senateSvg" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend"><b>Senate</b><br><span class="sw" style="background:#d8e7fb"></span>Democratic<br><span class="sw" style="background:#f6dada"></span>Republican<br><span class="sw" style="background:#faefad"></span>Independent<br><span class="sw" style="background:linear-gradient(90deg,#d8e7fb 50%,#f6dada 50%)"></span>Split delegation<br><span class="sw" style="background:#fff;border:2px solid #333"></span>2026 race</div>
+  </div>
+</section>
+</div>
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+const FIPS={"01":"AL","02":"AK","04":"AZ","05":"AR","06":"CA","08":"CO","09":"CT","10":"DE","12":"FL","13":"GA","15":"HI","16":"ID","17":"IL","18":"IN","19":"IA","20":"KS","21":"KY","22":"LA","23":"ME","24":"MD","25":"MA","26":"MI","27":"MN","28":"MS","29":"MO","30":"MT","31":"NE","32":"NV","33":"NH","34":"NJ","35":"NM","36":"NY","37":"NC","38":"ND","39":"OH","40":"OK","41":"OR","42":"PA","44":"RI","45":"SC","46":"SD","47":"TN","48":"TX","49":"UT","50":"VT","51":"VA","53":"WA","54":"WV","55":"WI","56":"WY"};
+const DELEG={"AL":"RR","AK":"RR","AZ":"DD","AR":"RR","CA":"DD","CO":"DD","CT":"DD","DE":"DD","FL":"RR","GA":"DD","HI":"DD","ID":"RR","IL":"DD","IN":"RR","IA":"RR","KS":"RR","KY":"RR","LA":"RR","ME":"IR","MD":"DD","MA":"DD","MI":"DD","MN":"DD","MS":"RR","MO":"RR","MT":"RR","NE":"RR","NV":"DD","NH":"DD","NJ":"DD","NM":"DD","NY":"DD","NC":"RR","ND":"RR","OH":"RR","OK":"RR","OR":"DD","PA":"DR","RI":"DD","SC":"RR","SD":"RR","TN":"RR","TX":"RR","UT":"RR","VT":"ID","VA":"DD","WA":"DD","WV":"RR","WI":"DR","WY":"RR"};
+const UP_PARTY={"AL":"R","AK":"R","AR":"R","CO":"D","DE":"D","GA":"D","ID":"R","IL":"D","IA":"R","KS":"R","KY":"R","LA":"R","ME":"R","MA":"D","MI":"D","MN":"D","MS":"R","MT":"R","NE":"R","NH":"D","NJ":"D","NM":"D","NC":"R","OK":"R","OR":"D","RI":"D","SC":"R","SD":"R","TN":"R","TX":"R","VA":"D","WV":"R","WY":"R","FL":"R","OH":"R"};
+const SPECIAL=new Set(["FL","OH"]);
+const COLORS={N:"#e5e7ea",D:"#2d72d2",R:"#d44747",I:"#e2bd20"};
+const LIGHT={D:"#d8e7fb",R:"#f6dada",I:"#faefad"};
+let activeTab="house",geo=null,houseChoices={},senateChoices={};
+try{houseChoices=JSON.parse(localStorage.getItem("midterms2026_house_geo")||"{}")||{}}catch(e){}
+try{senateChoices=JSON.parse(localStorage.getItem("midterms2026_senate_geo")||"{}")||{}}catch(e){}
+function saveChoices(){try{localStorage.setItem("midterms2026_house_geo",JSON.stringify(houseChoices));localStorage.setItem("midterms2026_senate_geo",JSON.stringify(senateChoices))}catch(e){}}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open("Midterms2026Cache",1);req.onupgradeneeded=()=>req.result.createObjectStore("assets");req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+async function cacheGet(){try{const db=await openDB();return await new Promise((resolve,reject)=>{const r=db.transaction("assets","readonly").objectStore("assets").get("cd120");r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}catch(e){return null}}
+async function cachePut(obj){try{const db=await openDB();await new Promise((resolve,reject)=>{const r=db.transaction("assets","readwrite").objectStore("assets").put(obj,"cd120");r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}catch(e){}}
+async function loadRemote(){const urls=["https://raw.githubusercontent.com/amcharts/amcharts4-geodata/master/dist/script/json/region/usa/congressional120/usaCongressionalLow.json","https://cdn.amcharts.com/lib/4/geodata/json/region/usa/congressional120/usaCongressionalLow.json"];let lastErr=null;for(const url of urls){try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);const g=await r.json();if(g&&g.features&&g.features.length)return g}catch(e){lastErr=e}}throw lastErr||new Error("Remote map unavailable")}
+function featureCode(f){return String(f.id||f.properties?.id||f.properties?.GEOID||f.properties?.GEOID20||f.properties?.GEOIDFQ||f.properties?.DISTRICT_ID||"")}
+function stateFromFeature(f){const p=f.properties||{};if(p.STATE&&/^[A-Z]{2}$/.test(String(p.STATE)))return String(p.STATE);if(p.STUSAB)return String(p.STUSAB);if(p.STATEFP)return FIPS[String(p.STATEFP).padStart(2,"0")]||"";if(p.STATEFP20)return FIPS[String(p.STATEFP20).padStart(2,"0")]||"";const id=featureCode(f).toUpperCase();let m=id.match(/(?:US[-_])?([A-Z]{2})[-_](?:CD)?0?(\d{1,2}|AL)\b/);if(m)return m[1];m=id.match(/^([A-Z]{2})[-_]/);if(m)return m[1];const digits=id.replace(/\D/g,"");if(digits.length>=4)return FIPS[digits.slice(0,2)]||"";return""}
+function districtFromFeature(f){const p=f.properties||{},vals=[p.CD120,p.CD120FP,p.CD119FP,p.CD118FP,p.CD,p.DISTRICT,p.BASENAME,p.DISTRICT_ID,featureCode(f)];for(const raw of vals){if(raw===undefined||raw===null)continue;const s=String(raw).toUpperCase();if(s==="00"||s==="0"||s==="AL"||/AT.LARGE/.test(s))return"AL";let m=s.match(/(?:^|[-_ ])(?:CD)?0?(\d{1,2})$/);if(m)return String(parseInt(m[1],10));m=s.match(/DISTRICT\s+0?(\d{1,2})/);if(m)return String(parseInt(m[1],10));const d=s.replace(/\D/g,"");if(d.length>=4){const tail=d.slice(-2);return tail==="00"?"AL":String(parseInt(tail,10))}}return""}
+function houseKey(f){return stateFromFeature(f)+"-"+districtFromFeature(f)}
+function project(lon,lat,st){lon=+lon;lat=+lat;if(st==="AK"){if(lon>0)lon-=360;return[55+(lon+180)/51*270,490+(72-lat)/21*160]}if(st==="HI")return[335+(lon+161)/7*165,565+(23-lat)/5*105];return[75+(lon+125)/59*1050,35+(50-lat)/26*560]}
+function ringPath(ring,st){if(!ring||!ring.length)return"";let s="";for(let i=0;i<ring.length;i++){const p=project(ring[i][0],ring[i][1],st);s+=(i?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)}return s+"Z"}
+function geomPath(g,st){if(!g)return"";if(g.type==="Polygon")return g.coordinates.map(r=>ringPath(r,st)).join("");if(g.type==="MultiPolygon")return g.coordinates.map(p=>p.map(r=>ringPath(r,st)).join("")).join("");return""}
+function addDefs(svg){const defs=document.createElementNS("http://www.w3.org/2000/svg","defs");["DR","RD","DI","ID","RI","IR"].forEach(c=>{const grad=document.createElementNS("http://www.w3.org/2000/svg","linearGradient");grad.id="grad"+c;grad.setAttribute("x1","0");grad.setAttribute("x2","1");const a=c[0],b=c[1];[["0%",LIGHT[a]],["50%",LIGHT[a]],["50%",LIGHT[b]],["100%",LIGHT[b]]].forEach(([o,col])=>{const stop=document.createElementNS("http://www.w3.org/2000/svg","stop");stop.setAttribute("offset",o);stop.setAttribute("stop-color",col);grad.appendChild(stop)});defs.appendChild(grad)});svg.appendChild(defs)}
+function delegationFill(st){const d=DELEG[st]||"";if(d.length<2)return"#eceef1";if(d[0]===d[1])return LIGHT[d[0]];return"url(#grad"+d+")"}
+function renderHouse(){houseSvg.innerHTML="";if(!geo)return;geo.features.forEach(f=>{const st=stateFromFeature(f),key=houseKey(f);if(!st||st==="DC"||!key||key.endsWith("-"))return;const s=houseChoices[key]||"N",p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geomPath(f.geometry,st));p.setAttribute("fill",COLORS[s]);p.setAttribute("class","district");p.onclick=()=>{const v=houseChoices[key]||"N";if(v==="N")houseChoices[key]="D";else if(v==="D")houseChoices[key]="R";else delete houseChoices[key];saveChoices();renderHouse();updateHouse()};houseSvg.appendChild(p)});houseStatus.classList.add("hidden")}
+function updateHouse(){let d=0,r=0;Object.values(houseChoices).forEach(v=>{if(v==="D")d++;else if(v==="R")r++});const n=435-d-r;houseD.textContent=d;houseR.textContent=r;houseDB.style.width=d/435*100+"%";houseNB.style.width=n/435*100+"%";houseRB.style.width=r/435*100+"%";houseSub.textContent=n+" seats unassigned • Click a district: blue → red → blank";if(d>=218){houseControl.textContent="Democrats control the House • "+d+" seats";houseControl.style.color="#2166c5"}else if(r>=218){houseControl.textContent="Republicans control the House • "+r+" seats";houseControl.style.color="#c93636"}else{houseControl.textContent="No party has reached 218 seats";houseControl.style.color="#17191d"}}
+function renderSenate(){senateSvg.innerHTML="";if(!geo)return;addDefs(senateSvg);geo.features.forEach(f=>{const st=stateFromFeature(f);if(!st||st==="DC")return;const up=!!UP_PARTY[st],pick=senateChoices[st]||null,p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geomPath(f.geometry,st));p.setAttribute("class","senatePath"+(up?" up":""));p.setAttribute("fill",pick?COLORS[pick]:delegationFill(st));p.setAttribute("opacity",pick?".96":up?".82":".68");if(up)p.onclick=()=>{const v=senateChoices[st]||null;if(v===null)senateChoices[st]="D";else if(v==="D")senateChoices[st]="R";else if(v==="R")senateChoices[st]="I";else delete senateChoices[st];saveChoices();renderSenate();updateSenate()};senateSvg.appendChild(p)});senateStatus.classList.add("hidden")}
+function updateSenate(){let d=45,r=53,i=2;Object.entries(senateChoices).forEach(([st,pick])=>{const old=UP_PARTY[st];if(!old)return;if(old==="D")d--;else if(old==="R")r--;else i--;if(pick==="D")d++;else if(pick==="R")r++;else if(pick==="I")i++});senateD.textContent=d;senateR.textContent=r;senateI.textContent=i;senateDB.style.width=d+"%";senateIB.style.width=i+"%";senateRB.style.width=r+"%";const assigned=Object.keys(senateChoices).filter(st=>UP_PARTY[st]).length;senateSub.textContent=35-assigned+" of 35 races unassigned • current → Democratic → Republican → Independent → current";if(r>=51){senateControl.textContent="Republicans control the Senate • "+r+" seats";senateControl.style.color="#c93636"}else if(d>=51){senateControl.textContent="Democrats control the Senate • "+d+" seats";senateControl.style.color="#2166c5"}else{senateControl.textContent="No party has 51 seats • Independent alignment could determine control";senateControl.style.color="#17191d"}}
+async function initGeo(){const cached=await cacheGet();if(cached){geo=cached;cacheBadge.textContent="map cached";renderHouse();renderSenate();loadRemote().then(async g=>{geo=g;await cachePut(g);renderHouse();renderSenate()}).catch(()=>{});return}try{const g=await loadRemote();geo=g;await cachePut(g);cacheBadge.textContent="map saved";renderHouse();renderSenate()}catch(e){houseStatus.innerHTML="Map failed to load.<small>Reload the page while online.</small>";senateStatus.innerHTML="Map failed to load.<small>Reload the page while online.</small>"}}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));housePanel.classList.toggle("active",activeTab==="house");senatePanel.classList.toggle("active",activeTab==="senate")});
+resetBtn.onclick=()=>{if(activeTab==="house"){if(confirm("Clear all House assignments?")){houseChoices={};saveChoices();renderHouse();updateHouse()}}else{if(confirm("Return all Senate races to their current state?")){senateChoices={};saveChoices();renderSenate();updateSenate()}}};
+updateHouse();updateSenate();initGeo();
+</script>
+</body>
+</html>
