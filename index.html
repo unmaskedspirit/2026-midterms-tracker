@@ -17,6 +17,16 @@ body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,
 #app{height:100%;display:flex;flex-direction:column}
 header{background:#fff;border-bottom:1px solid #d8dce2;padding:12px 18px 0;box-shadow:0 1px 5px #0001;z-index:10}
 .toprow{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap;justify-content:flex-end}
+.gamebar{display:flex;align-items:center;gap:10px;margin-top:9px;padding:8px 0 9px;border-top:1px solid #eceef1}
+.gameprogress{flex:1;min-width:120px;height:9px;background:#e1e4e8;border-radius:999px;overflow:hidden}
+.gameprogress>div{height:100%;background:#17191d;width:0%;transition:width .2s}
+.gametext{font-size:12px;color:#60656d;white-space:nowrap}
+.lockedpill{font-size:12px;font-weight:800;background:#e9ecf0;border-radius:999px;padding:5px 9px}
+.primary{background:#17191d;color:#fff;border-color:#17191d}
+.primary:hover{background:#2a2d33}
+.sharebtn{background:#fff}
+
 h1{font-size:21px;margin:0;font-weight:850}
 button{border:1px solid #c9ced5;background:#fff;border-radius:8px;padding:7px 11px;font-weight:700;cursor:pointer}
 button:hover{background:#f0f2f5}
@@ -53,7 +63,7 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px;backgr
 .offlinebadge{font-size:11px;color:#5e646c;margin-left:10px}
 @media(max-width:700px){
  h1{font-size:16px}.score{grid-template-columns:85px 1fr 100px;gap:7px}.party{font-size:13px}.rightscore{gap:5px}
- header,.scorearea{padding-left:10px;padding-right:10px}.offlinebadge{display:none}
+ header,.scorearea{padding-left:10px;padding-right:10px}.offlinebadge{display:none}.toprow{align-items:flex-start}.actions{gap:5px}.actions button{padding:7px 9px;font-size:12px}.gamebar{flex-wrap:wrap}.gametext{white-space:normal}
 }
 </style>
 </head>
@@ -62,7 +72,17 @@ svg{display:block;width:100%;height:100%;min-width:900px;min-height:560px;backgr
 <header>
   <div class="toprow">
     <div><h1 style="display:inline">2026 Midterms Tracker</h1><span class="offlinebadge" id="cacheBadge"></span></div>
-    <button id="resetBtn">Reset current tab</button>
+    <div class="actions">
+      <span id="lockedPill" class="lockedpill hidden">🔒 Locked</span>
+      <button id="resetBtn">Reset current tab</button>
+      <button id="editBtn" class="hidden">Edit Picks</button>
+      <button id="shareBtn" class="sharebtn hidden">Share</button>
+      <button id="lockBtn" class="primary">Lock Map</button>
+    </div>
+  </div>
+  <div class="gamebar">
+    <div class="gameprogress"><div id="gameProgressFill"></div></div>
+    <div id="gameProgressText" class="gametext">Loading game…</div>
   </div>
   <div class="tabs">
     <button class="tab active" data-tab="house">House</button>
@@ -126,10 +146,70 @@ const SPECIAL=new Set(["FL","OH"]);
 const COLORS={N:"#e5e7ea",D:"#2d72d2",R:"#d44747",I:"#e2bd20"};
 const LIGHT={D:"#d8e7fb",R:"#f6dada",I:"#faefad"};
 const HOUSE_COMPETITIVE=new Set(["AZ-1","AZ-6","CA-6","CA-13","CA-22","CA-45","CA-48","CO-5","CO-8","FL-13","FL-14","FL-22","FL-25","FL-27","IA-1","IA-2","IA-3","IN-1","MI-4","MI-7","MI-8","MI-10","MT-1","NC-1","NC-11","NE-2","NH-1","NJ-7","NM-2","NV-1","NV-3","NY-3","NY-4","NY-17","OH-1","OH-7","OH-9","PA-1","PA-7","PA-8","PA-10","TX-15","TX-28","TX-34","TX-35","VA-1","VA-2","WA-3","WI-1","WI-3"]);
-let activeTab="house",geo=null,stateGeo=null,houseBaseline={},houseChoices={},senateChoices={};
+let activeTab="house",geo=null,stateGeo=null,houseBaseline={},houseChoices={},senateChoices={},gameLocked=false,pendingSharedCode=null;
 try{houseChoices=JSON.parse(localStorage.getItem("midterms2026_house_v2")||"{}")||{}}catch(e){}
 try{senateChoices=JSON.parse(localStorage.getItem("midterms2026_senate_geo")||"{}")||{}}catch(e){}
 function saveChoices(){try{localStorage.setItem("midterms2026_house_v2",JSON.stringify(houseChoices));localStorage.setItem("midterms2026_senate_geo",JSON.stringify(senateChoices))}catch(e){}}
+function gameCounts(){
+  let hc=0; HOUSE_COMPETITIVE.forEach(k=>{if(shownHouseParty(k)!=="N")hc++});
+  let sc=0; Object.keys(UP_PARTY).forEach(st=>{if(senateChoices[st])sc++});
+  return {hc,sc,total:hc+sc};
+}
+function updateGameUI(){
+  const c=gameCounts(), total=85, pct=Math.round(c.total/total*100);
+  gameProgressFill.style.width=pct+"%";
+  gameProgressText.textContent=gameLocked
+    ? "Prediction locked • "+c.hc+"/50 House • "+c.sc+"/35 Senate"
+    : c.hc+"/50 House races • "+c.sc+"/35 Senate races";
+  lockedPill.classList.toggle("hidden",!gameLocked);
+  editBtn.classList.toggle("hidden",!gameLocked);
+  shareBtn.classList.toggle("hidden",!gameLocked);
+  lockBtn.classList.toggle("hidden",gameLocked);
+  resetBtn.disabled=gameLocked;
+  lockBtn.disabled=!Object.keys(houseBaseline).length || c.hc<50 || c.sc<35;
+  lockBtn.title=lockBtn.disabled?"Call all 50 House races and all 35 Senate races first":"Lock this prediction";
+}
+function valuesToCode(vals){
+  const map={D:0,R:1,I:2,N:3}, bytes=new Uint8Array(1+Math.ceil(vals.length/4)); bytes[0]=1;
+  vals.forEach((v,i)=>{bytes[1+(i>>2)]|=(map[v]??3)<<((i&3)*2)});
+  let s=""; bytes.forEach(b=>s+=String.fromCharCode(b));
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+function codeToValues(code,count){
+  try{
+    const raw=atob(code.replace(/-/g,"+").replace(/_/g,"/")); const bytes=Uint8Array.from(raw,c=>c.charCodeAt(0));
+    if(bytes[0]!==1)return null; const rev=["D","R","I","N"], out=[];
+    for(let i=0;i<count;i++)out.push(rev[(bytes[1+(i>>2)]>>((i&3)*2))&3]);
+    return out;
+  }catch(e){return null}
+}
+function makeShareCode(){
+  const hk=Object.keys(houseBaseline).sort(), sk=Object.keys(UP_PARTY).sort();
+  return valuesToCode(hk.map(k=>shownHouseParty(k)).concat(sk.map(st=>senateChoices[st]||"N")));
+}
+function applyShareCode(code){
+  const hk=Object.keys(houseBaseline).sort(), sk=Object.keys(UP_PARTY).sort();
+  const vals=codeToValues(code,hk.length+sk.length); if(!vals)return false;
+  houseChoices={}; senateChoices={};
+  hk.forEach((k,i)=>{houseChoices[k]=vals[i]});
+  sk.forEach((st,j)=>{const v=vals[hk.length+j];if(v!=="N")senateChoices[st]=v});
+  gameLocked=true; saveChoices(); renderHouse(); renderSenate(); updateHouse(); updateSenate(); updateGameUI(); return true;
+}
+function unlockGame(){
+  gameLocked=false; const u=new URL(location.href);u.searchParams.delete("p");history.replaceState(null,"",u);
+  updateGameUI();renderHouse();renderSenate();
+}
+function lockGame(){
+  const c=gameCounts(); if(c.hc<50||c.sc<35)return;
+  gameLocked=true; const code=makeShareCode(); const u=new URL(location.href);u.searchParams.set("p",code);history.replaceState(null,"",u);
+  updateGameUI();renderHouse();renderSenate();
+}
+async function shareGame(){
+  const url=location.href, text="My 2026 Midterm prediction — make your own map:";
+  if(navigator.share){try{await navigator.share({title:"2026 Midterms Prediction",text,url});return}catch(e){if(e&&e.name==="AbortError")return}}
+  prompt("Copy this prediction link:",url);
+}
+
 function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open("Midterms2026Cache",1);req.onupgradeneeded=()=>req.result.createObjectStore("assets");req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
 async function cacheGet(){try{const db=await openDB();return await new Promise((resolve,reject)=>{const r=db.transaction("assets","readonly").objectStore("assets").get("cd120");r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}catch(e){return null}}
 async function cachePut(obj){try{const db=await openDB();await new Promise((resolve,reject)=>{const r=db.transaction("assets","readwrite").objectStore("assets").put(obj,"cd120");r.onsuccess=()=>resolve();r.onerror=()=>reject(r.error)})}catch(e){}}
@@ -148,16 +228,22 @@ function ringPath(ring,st){if(!ring||!ring.length)return"";let s="";for(let i=0;
 function geomPath(g,st){if(!g)return"";if(g.type==="Polygon")return g.coordinates.map(r=>ringPath(r,st)).join("");if(g.type==="MultiPolygon")return g.coordinates.map(p=>p.map(r=>ringPath(r,st)).join("")).join("");return""}
 function addDefs(svg){const defs=document.createElementNS("http://www.w3.org/2000/svg","defs");["DR","RD","DI","ID","RI","IR"].forEach(c=>{const grad=document.createElementNS("http://www.w3.org/2000/svg","linearGradient");grad.id="grad"+c;grad.setAttribute("x1","0");grad.setAttribute("x2","1");const a=c[0],b=c[1];[["0%",LIGHT[a]],["50%",LIGHT[a]],["50%",LIGHT[b]],["100%",LIGHT[b]]].forEach(([o,col])=>{const stop=document.createElementNS("http://www.w3.org/2000/svg","stop");stop.setAttribute("offset",o);stop.setAttribute("stop-color",col);grad.appendChild(stop)});defs.appendChild(grad)});svg.appendChild(defs)}
 function delegationFill(st){const d=DELEG[st]||"";if(d.length<2)return"#eceef1";if(d[0]===d[1])return LIGHT[d[0]];return"url(#grad"+d+")"}
-function renderHouse(){houseSvg.innerHTML="";if(!geo)return;geo.features.forEach(f=>{const st=stateFromFeature(f),key=houseKey(f);if(!st||st==="DC"||!key||key.endsWith("-"))return;const s=shownHouseParty(key),p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geomPath(f.geometry,st));p.setAttribute("fill",COLORS[s]);p.setAttribute("class","district");const dname=districtFromFeature(f),hlabel=(STATE_NAMES[st]||st)+(dname==="AL"?" at-large":dname?" "+ordinal(dname):"");p.onmouseenter=e=>showTip(hlabel,e);p.onmousemove=moveTip;p.onmouseleave=hideTip;p.ontouchstart=e=>{const t=e.touches&&e.touches[0];if(t)showTip(hlabel,t)};p.onclick=()=>{hideTip();const v=shownHouseParty(key);if(v==="N")houseChoices[key]="D";else if(v==="D")houseChoices[key]="R";else houseChoices[key]="N";saveChoices();renderHouse();updateHouse()};houseSvg.appendChild(p)});houseStatus.classList.add("hidden")}
-function updateHouse(){let d=0,r=0,n=0;const keys=Object.keys(houseBaseline);if(!keys.length){houseD.textContent="0";houseR.textContent="0";return}keys.forEach(k=>{const v=shownHouseParty(k);if(v==="D")d++;else if(v==="R")r++;else n++});houseD.textContent=d;houseR.textContent=r;houseDB.style.width=d/435*100+"%";houseNB.style.width=n/435*100+"%";houseRB.style.width=r/435*100+"%";houseSub.textContent=n+" races unassigned • 50-race competitive baseline from Cook/Inside Elections";if(d>=218){houseControl.textContent="Democrats at "+d+" assigned seats";houseControl.style.color="#2166c5"}else if(r>=218){houseControl.textContent="Republicans at "+r+" assigned seats";houseControl.style.color="#c93636"}else{houseControl.textContent="No party has reached 218 assigned seats";houseControl.style.color="#17191d"}}
-function renderSenate(){senateSvg.innerHTML="";if(!stateGeo)return;addDefs(senateSvg);stateGeo.features.forEach(f=>{const st=stateFromFeature(f);if(!st||st==="DC")return;const up=!!UP_PARTY[st],pick=senateChoices[st]||null,p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geomPath(f.geometry,st));p.setAttribute("class","senatePath"+(up?" up":""));p.setAttribute("fill",pick?COLORS[pick]:delegationFill(st));p.setAttribute("opacity",pick?".96":up?".82":".68");const slabel=STATE_NAMES[st]||st;p.onmouseenter=e=>showTip(slabel,e);p.onmousemove=moveTip;p.onmouseleave=hideTip;p.ontouchstart=e=>{const t=e.touches&&e.touches[0];if(t)showTip(slabel,t)};if(up)p.onclick=()=>{hideTip();const v=senateChoices[st]||null;if(v===null)senateChoices[st]="D";else if(v==="D")senateChoices[st]="R";else if(v==="R")senateChoices[st]="I";else delete senateChoices[st];saveChoices();renderSenate();updateSenate()};senateSvg.appendChild(p)});senateStatus.classList.add("hidden")}
-function updateSenate(){let d=45,r=53,i=2;Object.entries(senateChoices).forEach(([st,pick])=>{const old=UP_PARTY[st];if(!old)return;if(old==="D")d--;else if(old==="R")r--;else i--;if(pick==="D")d++;else if(pick==="R")r++;else if(pick==="I")i++});senateD.textContent=d;senateR.textContent=r;senateI.textContent=i;senateDB.style.width=d+"%";senateIB.style.width=i+"%";senateRB.style.width=r+"%";const assigned=Object.keys(senateChoices).filter(st=>UP_PARTY[st]).length;senateSub.textContent=35-assigned+" of 35 races unassigned • current → Democratic → Republican → Independent → current";if(r>=51){senateControl.textContent="Republicans control the Senate • "+r+" seats";senateControl.style.color="#c93636"}else if(d>=51){senateControl.textContent="Democrats control the Senate • "+d+" seats";senateControl.style.color="#2166c5"}else{senateControl.textContent="No party has 51 seats • Independent alignment could determine control";senateControl.style.color="#17191d"}}
+function renderHouse(){houseSvg.innerHTML="";if(!geo)return;geo.features.forEach(f=>{const st=stateFromFeature(f),key=houseKey(f);if(!st||st==="DC"||!key||key.endsWith("-"))return;const s=shownHouseParty(key),p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geomPath(f.geometry,st));p.setAttribute("fill",COLORS[s]);p.setAttribute("class","district");const dname=districtFromFeature(f),hlabel=(STATE_NAMES[st]||st)+(dname==="AL"?" at-large":dname?" "+ordinal(dname):"");p.onmouseenter=e=>showTip(hlabel,e);p.onmousemove=moveTip;p.onmouseleave=hideTip;p.ontouchstart=e=>{const t=e.touches&&e.touches[0];if(t)showTip(hlabel,t)};p.onclick=()=>{hideTip();if(gameLocked)return;const v=shownHouseParty(key);if(v==="N")houseChoices[key]="D";else if(v==="D")houseChoices[key]="R";else houseChoices[key]="N";saveChoices();renderHouse();updateHouse()};houseSvg.appendChild(p)});houseStatus.classList.add("hidden")}
+function updateHouse(){let d=0,r=0,n=0;const keys=Object.keys(houseBaseline);if(!keys.length){houseD.textContent="0";houseR.textContent="0";return}keys.forEach(k=>{const v=shownHouseParty(k);if(v==="D")d++;else if(v==="R")r++;else n++});houseD.textContent=d;houseR.textContent=r;houseDB.style.width=d/435*100+"%";houseNB.style.width=n/435*100+"%";houseRB.style.width=r/435*100+"%";houseSub.textContent=n+" races unassigned • 50-race competitive baseline from Cook/Inside Elections";if(d>=218){houseControl.textContent="Democrats at "+d+" assigned seats";houseControl.style.color="#2166c5"}else if(r>=218){houseControl.textContent="Republicans at "+r+" assigned seats";houseControl.style.color="#c93636"}else{houseControl.textContent="No party has reached 218 assigned seats";houseControl.style.color="#17191d"}updateGameUI()}
+function renderSenate(){senateSvg.innerHTML="";if(!stateGeo)return;addDefs(senateSvg);stateGeo.features.forEach(f=>{const st=stateFromFeature(f);if(!st||st==="DC")return;const up=!!UP_PARTY[st],pick=senateChoices[st]||null,p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",geomPath(f.geometry,st));p.setAttribute("class","senatePath"+(up?" up":""));p.setAttribute("fill",pick?COLORS[pick]:delegationFill(st));p.setAttribute("opacity",pick?".96":up?".82":".68");const slabel=STATE_NAMES[st]||st;p.onmouseenter=e=>showTip(slabel,e);p.onmousemove=moveTip;p.onmouseleave=hideTip;p.ontouchstart=e=>{const t=e.touches&&e.touches[0];if(t)showTip(slabel,t)};if(up)p.onclick=()=>{hideTip();if(gameLocked)return;const v=senateChoices[st]||null;if(v===null)senateChoices[st]="D";else if(v==="D")senateChoices[st]="R";else if(v==="R")senateChoices[st]="I";else delete senateChoices[st];saveChoices();renderSenate();updateSenate()};senateSvg.appendChild(p)});senateStatus.classList.add("hidden")}
+function updateSenate(){let d=45,r=53,i=2;Object.entries(senateChoices).forEach(([st,pick])=>{const old=UP_PARTY[st];if(!old)return;if(old==="D")d--;else if(old==="R")r--;else i--;if(pick==="D")d++;else if(pick==="R")r++;else if(pick==="I")i++});senateD.textContent=d;senateR.textContent=r;senateI.textContent=i;senateDB.style.width=d+"%";senateIB.style.width=i+"%";senateRB.style.width=r+"%";const assigned=Object.keys(senateChoices).filter(st=>UP_PARTY[st]).length;senateSub.textContent=35-assigned+" of 35 races unassigned • current → Democratic → Republican → Independent → current";if(r>=51){senateControl.textContent="Republicans control the Senate • "+r+" seats";senateControl.style.color="#c93636"}else if(d>=51){senateControl.textContent="Democrats control the Senate • "+d+" seats";senateControl.style.color="#2166c5"}else{senateControl.textContent="No party has 51 seats • Independent alignment could determine control";senateControl.style.color="#17191d"}updateGameUI()}
 async function initGeo(){const cached=await cacheGet();if(cached){geo=cached;cacheBadge.textContent="map cached";renderHouse();loadRemote().then(async g=>{geo=g;await cachePut(g);renderHouse()}).catch(()=>{});return}try{const g=await loadRemote();geo=g;await cachePut(g);cacheBadge.textContent="map saved";renderHouse()}catch(e){houseStatus.innerHTML="Map failed to load.<small>Reload the page while online.</small>"}}
 async function initStates(){const cached=await stateCacheGet();if(cached){stateGeo=cached;renderSenate();loadStatesRemote().then(async g=>{stateGeo=g;await stateCachePut(g);renderSenate()}).catch(()=>{});return}try{const g=await loadStatesRemote();stateGeo=g;await stateCachePut(g);renderSenate()}catch(e){senateStatus.innerHTML="State map failed to load.<small>Reload the page while online.</small>"}}
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{activeTab=b.dataset.tab;document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("active",x===b));housePanel.classList.toggle("active",activeTab==="house");senatePanel.classList.toggle("active",activeTab==="senate")});
-resetBtn.onclick=()=>{if(activeTab==="house"){if(confirm("Return House to the 50-race competitive baseline?")){houseChoices={};saveChoices();renderHouse();updateHouse()}}else{if(confirm("Return all Senate races to their current state?")){senateChoices={};saveChoices();renderSenate();updateSenate()}}};
-async function initHouseBaseline(){try{const r=await fetch("./house_baseline.json",{cache:"no-store"});houseBaseline=await r.json();updateHouse();renderHouse()}catch(e){}}
-updateHouse();updateSenate();initHouseBaseline();initGeo();initStates();
+lockBtn.onclick=lockGame; editBtn.onclick=unlockGame; shareBtn.onclick=shareGame;
+resetBtn.onclick=()=>{if(gameLocked)return;if(activeTab==="house"){if(confirm("Return House to the 50-race competitive baseline?")){houseChoices={};saveChoices();renderHouse();updateHouse()}}else{if(confirm("Return all Senate races to their current state?")){senateChoices={};saveChoices();renderSenate();updateSenate()}}};
+async function initHouseBaseline(){try{
+  const r=await fetch("./house_baseline.json",{cache:"no-store"});houseBaseline=await r.json();
+  const q=new URLSearchParams(location.search).get("p"); if(q)pendingSharedCode=q;
+  if(pendingSharedCode){const ok=applyShareCode(pendingSharedCode);if(!ok){pendingSharedCode=null;updateHouse();renderHouse()}}
+  else{updateHouse();renderHouse();updateGameUI()}
+}catch(e){}}
+updateHouse();updateSenate();updateGameUI();initHouseBaseline();initGeo();initStates();
 </script>
 <script>
 if("serviceWorker" in navigator){
