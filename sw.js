@@ -1,4 +1,4 @@
-const CACHE="midterms-2026-v10";
+const CACHE="midterms-2026-v11";
 const APP=["./","./index.html","./manifest.webmanifest","./icon.svg","./states.json","./house_baseline.json","./results.json"];
 const MAPS=[
 "https://raw.githubusercontent.com/amcharts/amcharts4-geodata/master/dist/script/json/region/usa/congressional120/usaCongressionalLow.json",
