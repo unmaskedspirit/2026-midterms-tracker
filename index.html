@@ -185,7 +185,7 @@ function updateGameUI(){
   playerNameView.textContent=gameLocked?(player?player+"'s prediction":"2026 prediction"):"";
   const called=Object.keys(electionResults.house||{}).length+Object.keys(electionResults.senate||{}).length;
   scoreBtn.disabled=called===0||!gameLocked;
-  scoreBtn.title=called===0?"Scoring activates once official results start coming in":(!gameLocked?"Lock a map first":"Score against called races");
+  scoreBtn.title=called===0?"Scoring activates once race calls start coming in":(!gameLocked?"Lock a map first":"Score against called races");
 }
 function cleanPlayerName(v){return String(v||"").trim().replace(/[<>]/g,"").slice(0,30)}
 async function loadResults(){
@@ -315,7 +315,7 @@ async function initHouseBaseline(){try{
   if(pendingSharedCode){const ok=applyShareCode(pendingSharedCode);if(!ok){pendingSharedCode=null;updateHouse();renderHouse()}}
   else{updateHouse();renderHouse();updateGameUI()}
 }catch(e){}}
-updateHouse();updateSenate();updateGameUI();loadResults();initHouseBaseline();initGeo();initStates();
+updateHouse();updateSenate();updateGameUI();loadResults();setInterval(loadResults,60000);initHouseBaseline();initGeo();initStates();
 </script>
 <script>
 if("serviceWorker" in navigator){
